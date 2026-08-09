@@ -1,4 +1,3 @@
-import {io} from '../server'
 const onWebrtcSignal=async(data)=>{
     if(data.isCaller){
         if(data.ongoingCall.callee.socketId){

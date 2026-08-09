@@ -1,4 +1,5 @@
-import Peer from 'simple-peer'
+import Peer from "simple-peer";
+
 export interface UserProfile {
   id: string;
   fullName: string | null;
@@ -14,15 +15,17 @@ export interface SocketUser {
 export type OngoingCall = {
   caller: SocketUser;
   callee: SocketUser;
-  callType?: "video" | "audio";
+  callType: "video" | "audio";
   isRinging: boolean;
 };
-export type incomingCall={
-  caller:SocketUser,
-  callee:SocketUser
-}
-export type PeerData={
-  peerConnection:Peer.Instance;
-  stream?:MediaStream | undefined;
-  participantUser:SocketUser
-}
+
+export type IncomingCall = {
+  caller: SocketUser;
+  callee: SocketUser;
+};
+
+export type PeerData = {
+  peerConnection: Peer.Instance;
+  stream?: MediaStream;
+  participantUser: SocketUser;
+};
