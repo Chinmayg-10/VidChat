@@ -4,16 +4,19 @@ import { createContext, useContext, useEffect, useState,useCallback } from "reac
 import { io, Socket } from "socket.io-client";
 import { useUser } from "@clerk/nextjs";
 import { SocketUser } from "@/types";
-import { OngoingCall,incomingCall } from "@/types";
+import { OngoingCall,incomingCall,PeerData } from "@/types";
+import Peer,{ SignalData} from 'simple-peer'
 interface ISocketContext {
   socket: Socket | null;
   onlineUsers: SocketUser[] | null;
   ongoingCall: OngoingCall | null;
+  localStream:MediaStream | null;
   handleCall: (
     user: SocketUser,
     callType?: "video" | "audio"
 
   ) => void;
+  handleJoinCall: (ongoingCall:OngoingCall)=>void
 }
 
 export const SocketContext = createContext<ISocketContext | null>(null);
@@ -29,13 +32,39 @@ export const SocketContextProvider = ({
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<SocketUser[] | null>(null);
   const [ongoingCall, setOngoingCall] = useState<OngoingCall | null>(null);
-
+  const [localStream,setLocalStream]=useState<MediaStream | null>(null)
+  const [peer,setPeer]=useState<PeerData |null>(null)
   // Current Socket User
     const currSocketUser=onlineUsers?.find((onlineUser =>onlineUser.userId ===user?.id))
 
+    const getMediaStream=useCallback(async(faceMode?: string)=>{
+      if(localStream){
+        return localStream
+      }
+      try{
+        const devices=await navigator.mediaDevices.enumerateDevices()
+        const videoDevices=devices.filter(device => device.kind === "videoinput")
+        const stream=await navigator.mediaDevices.getUserMedia({
+          audio:true,
+          video:{
+            width:{min:640 , ideal:1280,max:1920},
+            height:{min:360,ideal:720,max:1080},
+            frameRate:{min:16,ideal:30,max:30},
+            facingMode:videoDevices.length >0 ?faceMode : undefined
+          }
+        })
+        setLocalStream(stream)
+        return stream;
+      }
+      catch(error){
+        console.log('Failed to get the stream',error)
+        setLocalStream(null);
+        return null
+      }
+    },[localStream])
     //Handle Outgoing Call
-  const handleCall = useCallback(
-    (
+  const handleCall =useCallback(
+    async(
       callee: SocketUser,
       callType: "video" | "audio" = "video"
     ) => {
@@ -45,6 +74,12 @@ export const SocketContextProvider = ({
         );
         return;
       }
+      const stream=await getMediaStream()
+      //if we do not have camera
+      if(!stream){
+        return ;
+      }
+
 
       const caller = currSocketUser;
 
@@ -84,6 +119,100 @@ export const SocketContextProvider = ({
   },
   []
 );
+const handleHangup=useCallback(()=>{},[])
+const createPeer=useCallback((stream:MediaStream,initiator:boolean)=>{
+  const iceServers:RTCIceServer[]=[
+    {
+      urls:[
+        "stun:stun.1.goggle.com:19302",
+        "stun:stun1.1.goggle.com:19302",
+        "stun:stun2.1.goggle.com:19302",
+        "stun:stun3.1.goggle.com:19302",
+        "stun:stun4.1.goggle.com:19302",
+      ]
+    }
+  ]
+
+  const peer=new Peer({
+    stream,
+    initiator,
+    trickle:true,
+    config:{iceServers}
+  })
+  peer.on('stream',(stream)=>{
+    setPeer((prevPeer)=>{
+      if(prevPeer){
+        return {...prevPeer,stream}
+      }
+      return prevPeer
+    })
+  });
+  peer.on("error",console.error)
+  peer.on("close",()=>handleHangup())
+  const rtcPeerConnection:RTCPeerConnection=(peer as any)._pc
+  rtcPeerConnection.oniceconnectionstatechange=async()=>{
+    if(rtcPeerConnection.iceConnectionState==="disconnected" || rtcPeerConnection.iceConnectionState==="failed"){
+      handleHangup()
+    }
+  }
+  return peer
+},[ongoingCall,setPeer])
+
+const completePeerConnection=useCallback(async(connectionData:{sdp:SignalData,ongoingCall:OngoingCall,isCaller:boolean})=>{
+  if(!localStream){
+    return;
+  }
+  if(peer){
+    peer.peerConnection?.signal(connectionData.sdp)
+    return;
+  }
+  const newPeer=createPeer(localStream,true)
+  setPeer({
+    peerConnection:newPeer,
+    participantUser:connectionData.ongoingCall.callee,
+    stream:undefined
+  })
+  newPeer.on('signal',async(data:SignalData)=>{
+    if(socket){
+      //emit offer
+      socket.emit('webrtcSignal',{
+        sdp:data,
+        ongoingCall,
+        isCaller:true
+      })
+    }
+  })
+
+},[localStream,createPeer,peer,ongoingCall])
+const handleJoinCall=useCallback(async(ongoingCall:OngoingCall)=>{
+  //join call
+  setOngoingCall(prev =>{
+    if(prev){
+      return{...prev,isRinging:false}
+    }
+    return prev
+  })
+  const stream=await getMediaStream()
+  if(!stream){
+    return
+  }
+  const newPeer=createPeer(stream,true)
+  setPeer({
+    peerConnection:newPeer,
+    participantUser:ongoingCall.caller,
+    stream:undefined
+  })
+  newPeer.on('signal',async(data:SignalData)=>{
+    if(socket){
+      //emit offer
+      socket.emit('webrtcSignal',{
+        sdp:data,
+        ongoingCall,
+        isCaller:false
+      })
+    }
+  })
+},[socket,currSocketUser])
 //Initialize Socket
   useEffect(() => {
     const newSocket = io();
@@ -145,6 +274,7 @@ export const SocketContextProvider = ({
         return;
     }
     socket.on('incomingCall',onIncomingCall)
+    socket.on('webrtcSignal',completePeerConnection)
     return()=>{
         socket.off("incomingCall",onIncomingCall)
     }
@@ -156,7 +286,9 @@ export const SocketContextProvider = ({
         socket,
         onlineUsers,
         handleCall,
-        ongoingCall
+        ongoingCall,
+        localStream,
+        handleJoinCall
       }}
     >
       {children}
