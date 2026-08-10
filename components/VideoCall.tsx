@@ -1,8 +1,17 @@
 "use client";
 
 import VideoContainer from "./VideoContainer";
-import { useSocket } from "@/context/SocketContext";
-import { useCallback, useState, useEffect } from "react";
+
+import {
+  useSocket,
+} from "@/context/SocketContext";
+
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+
 import {
   MdMic,
   MdMicOff,
@@ -15,15 +24,19 @@ const VideoCall = () => {
     localStream,
     peer,
     ongoingCall,
+    isCallEnded,
     handleHangup,
   } = useSocket();
 
-  const [isMicOn, setIsMicOn] = useState(true);
-  const [isVidOn, setIsVidOn] = useState(true);
+  const [
+    isMicOn,
+    setIsMicOn,
+  ] = useState(true);
 
-  // ==========================================
-  // UPDATE MIC / CAMERA STATE
-  // ==========================================
+  const [
+    isVidOn,
+    setIsVidOn,
+  ] = useState(true);
 
   useEffect(() => {
     if (!localStream) {
@@ -39,132 +52,140 @@ const VideoCall = () => {
       localStream.getAudioTracks()[0];
 
     if (videoTrack) {
-      setIsVidOn(videoTrack.enabled);
+      setIsVidOn(
+        videoTrack.enabled
+      );
     }
 
     if (audioTrack) {
-      setIsMicOn(audioTrack.enabled);
+      setIsMicOn(
+        audioTrack.enabled
+      );
     }
   }, [localStream]);
 
-  // ==========================================
-  // TOGGLE CAMERA
-  // ==========================================
+  const toggleCamera =
+    useCallback(() => {
+      if (!localStream) return;
 
-  const toggleCamera = useCallback(() => {
-    if (!localStream) return;
+      const videoTrack =
+        localStream.getVideoTracks()[0];
 
-    const videoTrack =
-      localStream.getVideoTracks()[0];
+      if (!videoTrack) return;
 
-    if (!videoTrack) return;
+      videoTrack.enabled =
+        !videoTrack.enabled;
 
-    videoTrack.enabled = !videoTrack.enabled;
+      setIsVidOn(
+        videoTrack.enabled
+      );
+    }, [localStream]);
 
-    setIsVidOn(videoTrack.enabled);
-  }, [localStream]);
+  const toggleMic =
+    useCallback(() => {
+      if (!localStream) return;
 
-  // ==========================================
-  // TOGGLE MICROPHONE
-  // ==========================================
+      const audioTrack =
+        localStream.getAudioTracks()[0];
 
-  const toggleMic = useCallback(() => {
-    if (!localStream) return;
+      if (!audioTrack) return;
 
-    const audioTrack =
-      localStream.getAudioTracks()[0];
+      audioTrack.enabled =
+        !audioTrack.enabled;
 
-    if (!audioTrack) return;
+      setIsMicOn(
+        audioTrack.enabled
+      );
+    }, [localStream]);
 
-    audioTrack.enabled = !audioTrack.enabled;
+  const isOnCall =
+    !!ongoingCall &&
+    !isCallEnded;
 
-    setIsMicOn(audioTrack.enabled);
-  }, [localStream]);
+  if (isCallEnded) {
+    return (
+      <div className="flex min-h-[500px] flex-col items-center justify-center">
+        <h2 className="text-2xl font-semibold">
+          Call Ended
+        </h2>
 
-  // ==========================================
-  // CHECK IF CURRENTLY ON CALL
-  // ==========================================
+        <p className="mt-2 text-gray-500">
+          The call has been disconnected.
+        </p>
+      </div>
+    );
+  }
 
-  const isOnCall = !!ongoingCall;
-
-  // ==========================================
-  // UI
-  // ==========================================
+  if (!localStream && !peer) {
+    return null;
+  }
 
   return (
     <div className="relative w-full">
-
       {/* VIDEO AREA */}
-
-      <div className="relative flex w-full flex-wrap items-center justify-center gap-4">
-
-        {/* LOCAL VIDEO */}
-
-        {localStream && (
-          <VideoContainer
-            stream={localStream}
-            isLocalStream={true}
-            isOnCall={isOnCall}
-          />
-        )}
-
+      <div className="relative h-[600px] w-full overflow-hidden rounded-xl bg-black">
         {/* REMOTE VIDEO */}
-
         {peer?.stream && (
           <VideoContainer
             stream={peer.stream}
             isLocalStream={false}
-            isOnCall={isOnCall}
           />
         )}
 
+        {/* LOCAL VIDEO */}
+        {localStream && (
+          <VideoContainer
+            stream={localStream}
+            isLocalStream={true}
+          />
+        )}
+
+        {/* CONTROLS */}
+        {isOnCall && (
+          <div className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-4 rounded-full bg-black/50 px-5 py-3">
+            <button
+              type="button"
+              onClick={toggleMic}
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-black"
+            >
+              {isMicOn ? (
+                <MdMic size={25} />
+              ) : (
+                <MdMicOff size={25} />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                handleHangup({
+                  ongoingCall:
+                    ongoingCall ??
+                    undefined,
+                  isEmitHangup: true,
+                })
+              }
+              className="rounded-full bg-red-500 px-6 py-3 font-medium text-white hover:bg-red-600"
+            >
+              End Call
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleCamera}
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-black"
+            >
+              {isVidOn ? (
+                <MdVideocam size={25} />
+              ) : (
+                <MdVideocamOff
+                  size={25}
+                />
+              )}
+            </button>
+          </div>
+        )}
       </div>
-
-      {/* CONTROLS */}
-
-      {isOnCall && (
-        <div className="mt-8 flex items-center justify-center">
-
-          {/* MICROPHONE */}
-
-          <button
-            type="button"
-            onClick={toggleMic}
-            className="flex h-12 w-12 items-center justify-center rounded-full hover:bg-gray-100"
-          >
-            {isMicOn ? (
-              <MdMic size={28} />
-            ) : (
-              <MdMicOff size={28} />
-            )}
-          </button>
-
-          {/* END CALL */}
-
-          <button
-            type="button"
-            onClick={handleHangup}
-            className="mx-4 flex items-center justify-center rounded-full bg-rose-500 px-5 py-3 text-white hover:bg-rose-600"
-          >
-            End Call
-          </button>
-
-          {/* CAMERA */}
-
-          <button
-            type="button"
-            onClick={toggleCamera}
-            className="flex h-12 w-12 items-center justify-center rounded-full hover:bg-gray-100"
-          >
-            {isVidOn ? (
-              <MdVideocam size={28} />
-            ) : (
-              <MdVideocamOff size={28} />
-            )}
-          </button>
-
-        </div>
-      )}
     </div>
   );
 };

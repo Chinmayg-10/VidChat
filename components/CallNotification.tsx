@@ -4,7 +4,7 @@ import { useSocket } from "@/context/SocketContext";
 import { MdCall, MdCallEnd } from "react-icons/md";
 
 const CallNotification = () => {
-  const { ongoingCall , handleJoinCall} = useSocket();
+  const { ongoingCall , handleJoinCall,handleHangup} = useSocket();
 
   if (!ongoingCall?.isRinging) {
     return null;
@@ -37,7 +37,7 @@ const CallNotification = () => {
         <div className="mt-6 flex justify-center gap-6">
 
           {/* Reject */}
-          <button
+          <button  onClick={()=>handleHangup({ongoingCall: ongoingCall ? ongoingCall : undefined,isEmitHangup:true})}
             type="button"
             className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-600"
           >

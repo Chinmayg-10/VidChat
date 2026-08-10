@@ -1,18 +1,36 @@
-const onWebrtcSignal=async(data)=>{
-    if(data.isCaller){
-        if(data.ongoingCall.callee.socketId){
-            io.to(data.ongoingCall.callee.socketId).emit(
-                "webrtcSignal",
-                data
-            );
-        }
+const onWebrtcSignal = ({ io, sdp, ongoingCall, isCaller }) => {
+  if (!io || !sdp || !ongoingCall) {
+    console.log("❌ Invalid WebRTC signal");
+    return;
+  }
+
+  if (isCaller) {
+    const calleeSocketId = ongoingCall.callee?.socketId;
+
+    if (!calleeSocketId) {
+      console.log("❌ Callee socket ID missing");
+      return;
     }
-    else{
-        if(data.ongoingCall.caller.socketId){
-            io.to(data.ongoingCall.caller.socketId).emit(
-                "webrtcSignal",data
-            );
-        }
+
+    io.to(calleeSocketId).emit("webrtcSignal", {
+      sdp,
+      ongoingCall,
+      isCaller: true,
+    });
+  } else {
+    const callerSocketId = ongoingCall.caller?.socketId;
+
+    if (!callerSocketId) {
+      console.log("❌ Caller socket ID missing");
+      return;
     }
-}
-export default onWebrtcSignal
+
+    io.to(callerSocketId).emit("webrtcSignal", {
+      sdp,
+      ongoingCall,
+      isCaller: false,
+    });
+  }
+};
+
+export default onWebrtcSignal;

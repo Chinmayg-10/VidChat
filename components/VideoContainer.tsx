@@ -1,18 +1,45 @@
-import { useEffect , useRef} from "react";
-import { cn } from "@/lib/utils";
-interface iVideoContainer{
-    stream:MediaStream | null;
-    isLocalStream:boolean,
-    isOnCall:boolean
-}
-const VideoContainer=({stream,isLocalStream, isOnCall}: iVideoContainer)=>{
-    const videoRef=useRef<HTMLVideoElement>(null)
-    useEffect(()=>{
-        if(videoRef.current && stream){
-            videoRef.current.srcObject=stream
-        }
-    },[stream])
+"use client";
 
-    return (<video className={cn("rounded border w-[800px]", isLocalStream && isOnCall && "w-[200px] h-auto absolute border-purple-500 border-2")} ref={videoRef} autoPlay playsInline muted={isLocalStream}/>)
+import {
+  useEffect,
+  useRef,
+} from "react";
+
+interface VideoContainerProps {
+  stream: MediaStream | null;
+  isLocalStream: boolean;
 }
-export default VideoContainer
+
+const VideoContainer = ({
+  stream,
+  isLocalStream,
+}: VideoContainerProps) => {
+  const videoRef =
+    useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (
+      videoRef.current &&
+      stream
+    ) {
+      videoRef.current.srcObject =
+        stream;
+    }
+  }, [stream]);
+
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted={isLocalStream}
+      className={
+        isLocalStream
+          ? "absolute bottom-6 right-6 z-10 h-40 w-56 rounded-xl border-2 border-white object-cover shadow-xl"
+          : "h-full min-h-[500px] w-full rounded-xl bg-black object-cover"
+      }
+    />
+  );
+};
+
+export default VideoContainer;
