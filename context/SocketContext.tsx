@@ -6,6 +6,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef
 } from "react";
 
 import { io, Socket } from "socket.io-client";
@@ -68,7 +69,8 @@ export const SocketContextProvider = ({
 
   const [localStream, setLocalStream] =
     useState<MediaStream | null>(null);
-
+  const localStreamRef =
+  useRef<MediaStream | null>(null);
   const [peer, setPeer] =
     useState<PeerData | null>(null);
 
@@ -91,8 +93,8 @@ export const SocketContextProvider = ({
 
   const getMediaStream = useCallback(
     async (faceMode?: string) => {
-      if (localStream) {
-        return localStream;
+      if (localStreamRef.current) {
+        return localStreamRef.current;
       }
 
       try {
@@ -122,7 +124,7 @@ export const SocketContextProvider = ({
               facingMode: faceMode,
             },
           });
-
+        localStreamRef.current=stream;
         setLocalStream(stream);
 
         return stream;
@@ -131,13 +133,13 @@ export const SocketContextProvider = ({
           "❌ Failed to get media stream:",
           error
         );
-
+        localStreamRef.current=null;
         setLocalStream(null);
 
         return null;
       }
     },
-    [localStream]
+    []
   );
 
   // ==========================================
@@ -180,8 +182,8 @@ export const SocketContextProvider = ({
       }
 
       // Stop camera + microphone
-      if (localStream) {
-        localStream
+      if (localStreamRef.current) {
+        localStreamRef.current
           .getTracks()
           .forEach((track) => track.stop());
       }
@@ -191,7 +193,7 @@ export const SocketContextProvider = ({
       setOngoingCall(null);
       setIsCallEnded(true);
     },
-    [socket, user, peer, localStream]
+    [socket, user, peer]
   );
 
   // ==========================================
@@ -370,6 +372,11 @@ export const SocketContextProvider = ({
         await getMediaStream();
 
       if (!stream) {
+        handleHangup({
+                  ongoingCall:
+                    call,
+                  isEmitHangup: true,
+                })
         return;
       }
 
@@ -400,6 +407,9 @@ export const SocketContextProvider = ({
           );
         }
       );
+      socket.emit("callAccepted",{
+        ongoingCall:call,
+      })
     },
     [
       socket,
@@ -408,6 +418,43 @@ export const SocketContextProvider = ({
     ]
   );
 
+  //call accepted
+  const handleCallAccepted = useCallback(
+  ({
+    ongoingCall: call,
+  }: {
+    ongoingCall: OngoingCall;
+  }) => {
+    console.log("✅ Call accepted");
+
+    if (!socket || !localStreamRef.current) {
+      return;
+    }
+
+    const newPeer = createPeer(
+      localStreamRef.current,
+      true
+    );
+
+    setPeer({
+      peerConnection: newPeer,
+      participantUser: call.callee,
+      stream: undefined,
+    });
+
+    newPeer.on(
+      "signal",
+      (data: SignalData) => {
+        socket.emit("webrtcSignal", {
+          sdp: data,
+          ongoingCall: call,
+          isCaller: true,
+        });
+      }
+    );
+  },
+  [socket, createPeer]
+);
   // ==========================================
   // HANDLE WEBRTC SIGNAL
   // ==========================================
@@ -453,15 +500,7 @@ export const SocketContextProvider = ({
   // ==========================================
 
   useEffect(() => {
-    const newSocket = io(
-      "http://localhost:3000",
-      {
-        transports: [
-          "websocket",
-          "polling",
-        ],
-      }
-    );
+    const newSocket = io();
 
     setSocket(newSocket);
 
@@ -569,7 +608,10 @@ export const SocketContextProvider = ({
       "incomingCall",
       onIncomingCall
     );
-
+    socket.on(
+      "callAccepted",
+      handleCallAccepted
+    );
     socket.on(
       "webrtcSignal",
       completePeerConnection
@@ -600,7 +642,10 @@ export const SocketContextProvider = ({
         "webrtcSignal",
         completePeerConnection
       );
-
+      socket.off(
+        "callAccepted",
+        handleCallAccepted
+      )
       socket.off(
         "hangUp",
         onRemoteHangup
@@ -612,6 +657,7 @@ export const SocketContextProvider = ({
     onIncomingCall,
     completePeerConnection,
     handleHangup,
+    handleCallAccepted
   ]);
 
   // ==========================================
