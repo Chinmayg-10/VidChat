@@ -99,7 +99,7 @@ app.prepare().then(() => {
     // HANG UP
     // ========================================
 
-    socket.on("hangup", (data) => {
+    socket.on("hangUp", (data) => {
       console.log("📴 Hangup received");
 
       onHangup({
@@ -108,6 +108,7 @@ app.prepare().then(() => {
       });
     });
     socket.on("callAccepted",({ongoingCall})=>{
+      console.log("✅ Call accepted");
       if(!ongoingCall?.caller?.socketId){
         return;
       }

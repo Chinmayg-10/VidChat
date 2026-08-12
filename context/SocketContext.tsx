@@ -147,55 +147,64 @@ export const SocketContextProvider = ({
   // ==========================================
 
   const handleHangup = useCallback(
-    ({
-      ongoingCall: call,
-      isEmitHangup = false,
-    }: {
-      ongoingCall?: OngoingCall;
-      isEmitHangup?: boolean;
-    }) => {
-      console.log("📴 Ending call");
+  ({
+    ongoingCall: call,
+    isEmitHangup = false,
+  }: {
+    ongoingCall?: OngoingCall;
+    isEmitHangup?: boolean;
+  }) => {
+    console.log("📴 Ending call");
 
-      // Tell the other user
-      if (
-        isEmitHangup &&
-        socket &&
-        user &&
-        call
-      ) {
-        socket.emit("hangup", {
-          ongoingCall: call,
-          userHangingupId: user.id,
-        });
-      }
+    // Tell the other user
+    if (
+      isEmitHangup &&
+      socket &&
+      user &&
+      call
+    ) {
+      socket.emit("hangup", {
+        ongoingCall: call,
+        userHangingupId: user.id,
+      });
+    }
 
-      // Destroy peer
-      if (peer?.peerConnection) {
-        try {
+    // Destroy peer connection
+    if (peer?.peerConnection) {
+      try {
+        if (!peer.peerConnection.destroyed) {
           peer.peerConnection.destroy();
-        } catch (error) {
-          console.error(
-            "Peer destroy error:",
-            error
-          );
         }
+      } catch (error) {
+        console.error(
+          "❌ Peer destroy error:",
+          error
+        );
       }
+    }
 
-      // Stop camera + microphone
-      if (localStreamRef.current) {
-        localStreamRef.current
-          .getTracks()
-          .forEach((track) => track.stop());
-      }
+    // Stop camera and microphone
+    if (localStreamRef.current) {
+      localStreamRef.current
+        .getTracks()
+        .forEach((track) => {
+          track.stop();
+        });
 
-      setPeer(null);
-      setLocalStream(null);
-      setOngoingCall(null);
-      setIsCallEnded(true);
-    },
-    [socket, user, peer]
-  );
+      // VERY IMPORTANT
+      localStreamRef.current = null;
+    }
 
+    // Clear React state
+    setPeer(null);
+    setLocalStream(null);
+    setOngoingCall(null);
+
+    // Show "Call Ended"
+    setIsCallEnded(true);
+  },
+  [socket, user, peer]
+);
   // ==========================================
   // CREATE PEER
   // ==========================================
@@ -363,10 +372,12 @@ export const SocketContextProvider = ({
 
       setIsCallEnded(false);
 
-      setOngoingCall({
-        ...call,
-        isRinging: false,
-      });
+      const acceptedCall: OngoingCall = {
+      ...call,
+      isRinging: false,
+    };
+
+    setOngoingCall(acceptedCall);
 
       const stream =
         await getMediaStream();
@@ -401,20 +412,21 @@ export const SocketContextProvider = ({
             "webrtcSignal",
             {
               sdp: data,
-              ongoingCall: call,
+              ongoingCall: acceptedCall,
               isCaller: false,
             }
           );
         }
       );
       socket.emit("callAccepted",{
-        ongoingCall:call,
-      })
+        ongoingCall:acceptedCall,
+      });
     },
     [
       socket,
       getMediaStream,
       createPeer,
+      handleHangup
     ]
   );
 
