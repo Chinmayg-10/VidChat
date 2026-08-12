@@ -73,7 +73,7 @@ export const SocketContextProvider = ({
   useRef<MediaStream | null>(null);
   const [peer, setPeer] =
     useState<PeerData | null>(null);
-
+  const peerRef=useRef<Peer.Instance | null>(null);
   const [isCallEnded, setIsCallEnded] =
     useState(false);
 
@@ -170,10 +170,10 @@ export const SocketContextProvider = ({
     }
 
     // Destroy peer connection
-    if (peer?.peerConnection) {
+    if (peerRef.current) {
       try {
-        if (!peer.peerConnection.destroyed) {
-          peer.peerConnection.destroy();
+        if (!peerRef.current.destroyed) {
+          peerRef.current.destroy();
         }
       } catch (error) {
         console.error(
@@ -181,6 +181,7 @@ export const SocketContextProvider = ({
           error
         );
       }
+      peerRef.current=null;
     }
 
     // Stop camera and microphone
@@ -203,7 +204,7 @@ export const SocketContextProvider = ({
     // Show "Call Ended"
     setIsCallEnded(true);
   },
-  [socket, user, peer]
+  [socket, user]
 );
   // ==========================================
   // CREATE PEER
@@ -225,7 +226,21 @@ export const SocketContextProvider = ({
           ],
         },
       ];
+          // Destroy any old peer before creating a new one
+    if (peerRef.current) {
+      try {
+        if (!peerRef.current.destroyed) {
+          peerRef.current.destroy();
+        }
+      } catch (error) {
+        console.error(
+          "❌ Old peer destroy error:",
+          error
+        );
+      }
 
+      peerRef.current = null;
+    }
       const newPeer = new Peer({
         stream,
         initiator,
@@ -235,6 +250,7 @@ export const SocketContextProvider = ({
         },
       });
 
+      peerRef.current=newPeer;
       // Remote stream
       newPeer.on(
         "stream",
@@ -268,6 +284,11 @@ export const SocketContextProvider = ({
           console.log(
             "📴 Peer connection closed"
           );
+          if (
+          peerRef.current === newPeer
+        ) {
+          peerRef.current = null;
+        }
         }
       );
 
@@ -475,8 +496,6 @@ export const SocketContextProvider = ({
     useCallback(
       ({
         sdp,
-        ongoingCall: call,
-        isCaller,
       }: {
         sdp: SignalData;
         ongoingCall: OngoingCall;
@@ -485,8 +504,9 @@ export const SocketContextProvider = ({
         console.log(
           "📡 Processing WebRTC signal"
         );
-
-        if (!peer) {
+        const currentPeer =
+        peerRef.current;
+        if (!currentPeer) {
           console.log(
             "❌ Peer not ready"
           );
@@ -494,7 +514,7 @@ export const SocketContextProvider = ({
         }
 
         try {
-          peer.peerConnection.signal(
+          currentPeer.signal(
             sdp
           );
         } catch (error) {
@@ -504,7 +524,7 @@ export const SocketContextProvider = ({
           );
         }
       },
-      [peer]
+      []
     );
 
   // ==========================================
