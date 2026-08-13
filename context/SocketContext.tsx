@@ -163,6 +163,9 @@ export const SocketContextProvider = ({
       user &&
       currentCall
     ) {
+      console.log(
+        "📤 Sending hangup to other user"
+      );
       socket.emit("hangup", {
         ongoingCall: currentCall,
         userHangingupId: user.id,
@@ -209,24 +212,27 @@ export const SocketContextProvider = ({
   // ==========================================
   // CREATE PEER
   // ==========================================
+const createPeer = useCallback(
+  (
+    stream: MediaStream,
+    initiator: boolean
+  ) => {
+    const iceServers: RTCIceServer[] = [
+      {
+        urls: [
+          "stun:stun.l.google.com:19302",
+          "stun:stun1.l.google.com:19302",
+          "stun:stun2.l.google.com:19302",
+          "stun:stun3.l.google.com:19302",
+          "stun:stun4.l.google.com:19302",
+        ],
+      },
+    ];
 
-  const createPeer = useCallback(
-    (
-      stream: MediaStream,
-      initiator: boolean
-    ) => {
-      const iceServers: RTCIceServer[] = [
-        {
-          urls: [
-            "stun:stun.l.google.com:19302",
-            "stun:stun1.l.google.com:19302",
-            "stun:stun2.l.google.com:19302",
-            "stun:stun3.l.google.com:19302",
-            "stun:stun4.l.google.com:19302",
-          ],
-        },
-      ];
-          // Destroy any old peer before creating a new one
+    // ==========================================
+    // DESTROY OLD PEER
+    // ==========================================
+
     if (peerRef.current) {
       try {
         if (!peerRef.current.destroyed) {
@@ -241,61 +247,84 @@ export const SocketContextProvider = ({
 
       peerRef.current = null;
     }
-      const newPeer = new Peer({
-        stream,
-        initiator,
-        trickle: true,
-        config: {
-          iceServers,
-        },
-      });
 
-      peerRef.current=newPeer;
-      // Remote stream
-      newPeer.on(
-        "stream",
-        (remoteStream) => {
-          setPeer((prevPeer) => {
-            if (!prevPeer) {
-              return null;
-            }
+    // ==========================================
+    // CREATE NEW PEER
+    // ==========================================
 
-            return {
-              ...prevPeer,
-              stream: remoteStream,
-            };
-          });
-        }
-      );
+    const newPeer = new Peer({
+      stream,
+      initiator,
+      trickle: true,
+      config: {
+        iceServers,
+      },
+    });
 
-      newPeer.on(
-        "error",
-        (error) => {
-          console.error(
-            "❌ Peer error:",
-            error
-          );
-        }
-      );
+    // Store current peer
+    peerRef.current = newPeer;
 
-      newPeer.on(
-        "close",
-        () => {
-          console.log(
-            "📴 Peer connection closed"
-          );
-          if (
-          peerRef.current === newPeer
-        ) {
+    // ==========================================
+    // REMOTE STREAM
+    // ==========================================
+
+    newPeer.on(
+      "stream",
+      (remoteStream) => {
+        console.log(
+          "🎥 Remote stream received"
+        );
+
+        setPeer((prevPeer) => {
+          if (!prevPeer) {
+            return null;
+          }
+
+          return {
+            ...prevPeer,
+            stream: remoteStream,
+          };
+        });
+      }
+    );
+
+    // ==========================================
+    // PEER ERROR
+    // ==========================================
+
+    newPeer.on(
+      "error",
+      (error) => {
+        console.error(
+          "❌ Peer error:",
+          error
+        );
+      }
+    );
+
+    // ==========================================
+    // PEER CLOSE
+    // ==========================================
+
+    newPeer.on(
+      "close",
+      () => {
+        console.log(
+          "📴 Peer connection closed"
+        );
+
+        // Only clear ref if this is
+        // still the active peer
+        if (peerRef.current === newPeer) {
           peerRef.current = null;
         }
-        }
-      );
+      }
+    );
 
-      return newPeer;
-    },
-    []
-  );
+    return newPeer;
+  },
+  []
+);
 
   // ==========================================
   // OUTGOING CALL

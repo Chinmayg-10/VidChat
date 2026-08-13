@@ -1,5 +1,6 @@
-const onHangup = ({ io, ongoingCall, userHangingupId }) => {
+const onHangup = async({ io, ongoingCall, userHangingupId }) => {
   if (!ongoingCall || !userHangingupId) {
+    console.log("❌ Invalid hangup data");
     return;
   }
 
@@ -7,17 +8,25 @@ const onHangup = ({ io, ongoingCall, userHangingupId }) => {
 
   if (ongoingCall.caller.userId === userHangingupId) {
     socketIdToEmitTo = ongoingCall.callee.socketId;
-  } else {
-    socketIdToEmitTo = ongoingCall.caller.socketId;
   }
-
-  if (socketIdToEmitTo) {
+  else if (
+    ongoingCall.callee.userId ===
+    userHangingupId
+  ) {
+    socketIdToEmitTo =
+      ongoingCall.caller.socketId;
+  }
+  if (!socketIdToEmitTo) {
     console.log(
+      "❌ Could not find other user's socket"
+    );
+    return;
+  }
+  console.log(
       "📨 Sending hangUp to:",
       socketIdToEmitTo
     );
     io.to(socketIdToEmitTo).emit("hangUp");
-  }
 };
 
 export default onHangup;

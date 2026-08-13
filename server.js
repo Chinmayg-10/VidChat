@@ -100,7 +100,7 @@ app.prepare().then(() => {
     // ========================================
 
     socket.on("hangUp", (data) => {
-      console.log("📴 Hangup received");
+      console.log("📴 Hangup received",data);
 
       onHangup({
         io,
