@@ -155,16 +155,16 @@ export const SocketContextProvider = ({
     isEmitHangup?: boolean;
   }) => {
     console.log("📴 Ending call");
-
+    const currentCall=call ?? ongoingCall
     // Tell the other user
     if (
       isEmitHangup &&
       socket &&
       user &&
-      call
+      currentCall
     ) {
       socket.emit("hangup", {
-        ongoingCall: call,
+        ongoingCall: currentCall,
         userHangingupId: user.id,
       });
     }
@@ -204,7 +204,7 @@ export const SocketContextProvider = ({
     // Show "Call Ended"
     setIsCallEnded(true);
   },
-  [socket, user]
+  [socket, user,ongoingCall]
 );
   // ==========================================
   // CREATE PEER
