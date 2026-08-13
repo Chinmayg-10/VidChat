@@ -1,5 +1,5 @@
 const onHangup = ({ io, ongoingCall, userHangingupId }) => {
-  if (!io || !ongoingCall || !userHangingupId) {
+  if (!ongoingCall || !userHangingupId) {
     return;
   }
 
@@ -12,6 +12,10 @@ const onHangup = ({ io, ongoingCall, userHangingupId }) => {
   }
 
   if (socketIdToEmitTo) {
+    console.log(
+      "📨 Sending hangUp to:",
+      socketIdToEmitTo
+    );
     io.to(socketIdToEmitTo).emit("hangUp");
   }
 };
