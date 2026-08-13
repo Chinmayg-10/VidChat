@@ -292,15 +292,19 @@ const createPeer = useCallback(
     // PEER ERROR
     // ==========================================
 
-    newPeer.on(
-      "error",
-      (error) => {
-        console.error(
-          "❌ Peer error:",
-          error
-        );
-      }
+    newPeer.on("error", (error) => {
+  if (newPeer.destroyed) {
+    console.log(
+      "ℹ️ Peer closed intentionally"
     );
+    return;
+  }
+
+  console.error(
+    "❌ Peer error:",
+    error
+  );
+});
 
     // ==========================================
     // PEER CLOSE
