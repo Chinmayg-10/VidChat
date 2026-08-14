@@ -34,10 +34,7 @@ const VideoContainer = ({
         );
 
         video.play().catch((error) => {
-          console.log(
-            "Video play error:",
-            error
-          );
+          console.error("Video play error:", error);
         });
       };
     } else {
@@ -49,9 +46,9 @@ const VideoContainer = ({
     };
   }, [stream]);
 
-  // ==========================================
+  // ================================
   // LOCAL VIDEO
-  // ==========================================
+  // ================================
 
   if (isLocalStream) {
     return (
@@ -83,9 +80,9 @@ const VideoContainer = ({
     );
   }
 
-  // ==========================================
+  // ================================
   // REMOTE VIDEO
-  // ==========================================
+  // ================================
 
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-black">
