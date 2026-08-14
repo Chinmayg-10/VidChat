@@ -103,25 +103,25 @@ export const SocketContextProvider = ({
             audio: true,
 
             video: {
-              width: {
-                min: 640,
-                ideal: 1280,
-                max: 1920,
-              },
+              // width: {
+              //   min: 640,
+              //   ideal: 1280,
+              //   max: 1920,
+              // },
 
-              height: {
-                min: 360,
-                ideal: 720,
-                max: 1080,
-              },
+              // height: {
+              //   min: 360,
+              //   ideal: 720,
+              //   max: 1080,
+              // },
 
-              frameRate: {
-                min: 16,
-                ideal: 30,
-                max: 30,
-              },
+              // frameRate: {
+              //   min: 16,
+              //   ideal: 30,
+              //   max: 30,
+              // },
 
-              facingMode: faceMode,
+              facingMode: faceMode || "user"
             },
           });
         localStreamRef.current=stream;

@@ -15,8 +15,7 @@ const VideoContainer = ({
   userImage,
   userName = "User",
 }: VideoContainerProps) => {
-  const videoRef =
-    useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -26,12 +25,21 @@ const VideoContainer = ({
     if (stream) {
       video.srcObject = stream;
 
-      video.play().catch((error) => {
+      video.onloadedmetadata = () => {
         console.log(
-          "Video autoplay prevented:",
-          error
+          "🎥 Video dimensions:",
+          video.videoWidth,
+          "x",
+          video.videoHeight
         );
-      });
+
+        video.play().catch((error) => {
+          console.log(
+            "Video play error:",
+            error
+          );
+        });
+      };
     } else {
       video.srcObject = null;
     }
@@ -47,7 +55,7 @@ const VideoContainer = ({
 
   if (isLocalStream) {
     return (
-      <div className="absolute bottom-6 right-6 z-10 h-40 w-56 overflow-hidden rounded-xl border-2 border-white bg-black shadow-xl">
+      <div className="absolute bottom-6 right-6 z-20 h-40 w-56 overflow-hidden rounded-xl border-2 border-white bg-black shadow-xl">
         {stream ? (
           <video
             ref={videoRef}
@@ -80,13 +88,19 @@ const VideoContainer = ({
   // ==========================================
 
   return (
-    <div className="flex h-full min-h-[500px] w-full items-center justify-center overflow-hidden rounded-xl bg-black">
+    <div className="absolute inset-0 flex items-center justify-center bg-black">
       {stream ? (
         <video
           ref={videoRef}
           autoPlay
           playsInline
-          className="h-full w-full object-contain"
+          className="
+            max-h-full
+            max-w-full
+            h-auto
+            w-auto
+            object-contain
+          "
         />
       ) : (
         <div className="flex h-full w-full flex-col items-center justify-center bg-gray-900">
