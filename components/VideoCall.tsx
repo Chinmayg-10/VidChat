@@ -126,17 +126,18 @@ const VideoCall = () => {
       <div className="relative h-[600px] w-full overflow-hidden rounded-xl bg-black">
         {/* REMOTE VIDEO */}
         {peer && (
-          <VideoContainer
-            stream={peer.stream ?? null}
-            isLocalStream={false}
-            userImage={peer.participantUser.profile.imageUrl}
-            userName={
-              peer.participantUser.profile.fullName ??
-              "User"
-            }
-          />
-        )}
-
+  <VideoContainer
+    stream={peer.stream ?? null}
+    isLocalStream={false}
+    userImage={
+      peer.participantUser.profile.imageUrl
+    }
+    userName={
+      peer.participantUser.profile.fullName ??
+      "User"
+    }
+  />
+)}
         {/* LOCAL VIDEO */}
         {localStream && (
           <VideoContainer
