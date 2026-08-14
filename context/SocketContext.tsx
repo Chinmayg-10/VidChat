@@ -166,7 +166,7 @@ export const SocketContextProvider = ({
       console.log(
         "📤 Sending hangup to other user"
       );
-      socket.emit("hangup", {
+      socket.emit("hangUp", {
         ongoingCall: currentCall,
         userHangingupId: user.id,
       });

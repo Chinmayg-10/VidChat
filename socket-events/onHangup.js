@@ -1,4 +1,4 @@
-const onHangup = async({ io, ongoingCall, userHangingupId }) => {
+const onHangup =({ io, ongoingCall, userHangingupId }) => {
   if (!ongoingCall || !userHangingupId) {
     console.log("❌ Invalid hangup data");
     return;
